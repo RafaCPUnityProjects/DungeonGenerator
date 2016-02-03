@@ -121,7 +121,7 @@ namespace DungeonGenerator
 				// See which adjacent cells are open.
 				var unmadeCells = new List<Direction>();
 
-		      for (var dir in Direction.CARDINAL)
+		      for (var dir in Direction)
 				{
 					if (_canCarve(cell, dir)) unmadeCells.add(dir);
 				}
@@ -358,4 +358,18 @@ namespace DungeonGenerator
 
 
 	}
+}
+
+public enum Direction
+{
+    NONE,
+    CARDINAL,
+    N,
+    NE,
+    E,
+    SE,
+    S,
+    SW,
+    W,
+    NW
 }
