@@ -37,7 +37,22 @@ namespace DungeonGenerator
 		public int height;
 		public Rect bounds;
 		public Tile[,] tiles;
+		public Stage(int width, int height)
+		{
+			Debug.Log("Stage start");
+			this.width = width;
+			this.height = height;
+			tiles = new Tile[width, height];
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					tiles[x, y] = new Tile();
+				}
+			}
+			Debug.Log("Stage finish");
 
+		}
 		//  Iterable<Actor> get actors => _actors;
 
 		//  Actor get currentActor => _actors[_currentActorIndex];
@@ -308,9 +323,18 @@ namespace DungeonGenerator
 			public TileType type;
 			public bool _visible = false;
 
-			Tile()
+			public Tile(TileType type, bool visible)
 			{
+				Debug.Log("type = " + type.name);
+				this.type = type;
+				_visible = visible;
+			}
 
+			public Tile()
+			{
+				type = Tiles.wall;
+				_visible = true;
+				Debug.Log("type = " + type.name);
 			}
 		}
 			//			bool get visible => _visible;

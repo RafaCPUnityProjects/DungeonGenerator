@@ -6,7 +6,7 @@ using TileType = DungeonGenerator.Stage.TileType;
 
 namespace DungeonGenerator
 {
-	public class Tiles
+	public static class Tiles
 	{
 		//		library hauberk.content.tiles;
 
@@ -31,7 +31,7 @@ namespace DungeonGenerator
 		public static TileType treeAlt1;
 		public static TileType treeAlt2;
 
-		static void initialize()
+		public static void initialize()
 		{
 			// Define the tile types.
 			Tiles.floor = new TileType("floor", true, true);

@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System;
 //using Tiles = DungeonGenerator.Stage.Tile;
+using Vec = DungeonGenerator.Vec;
+using System.Linq;
 
 namespace DungeonGenerator
 {
@@ -44,6 +47,10 @@ namespace DungeonGenerator
 		///// of winding corridors.
 		//abstract class Dungeon extends StageBuilder
 		//	{
+		public GameObject wall;
+		public GameObject floor;
+		public Vector2 tileSize = Vector2.one;
+
 		public int numRoomTries;
 
 		//  /// The inverse chance of adding a connector between two regions that have
@@ -67,14 +74,24 @@ namespace DungeonGenerator
 		private System.Random rng;
 		public string seed = "0";
 
+		private System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+
+		void Start()
+		{
+			Tiles.initialize();
+			stage = new Stage((int)bounds.width, (int)bounds.height);
+			generate(stage);
+		}
+
 		void generate(Stage stage)
 		{
+			sw.Start();
 			if (stage.width % 2 == 0 || stage.height % 2 == 0)
 			{
 				throw new System.ArgumentException("The stage must be odd-sized.");
 			}
 			rng = new System.Random(seed.GetHashCode());
-			//bindStage(stage);
+			bindStage(stage);
 
 			fill(Tiles.wall);
 			_regions = new int[stage.width, stage.height];
@@ -92,13 +109,34 @@ namespace DungeonGenerator
 				}
 			}
 
-			//_connectRegions();
+			_connectRegions();
 			//_removeDeadEnds();
 
 			foreach (var room in _rooms)
 			{
 				onDecorateRoom(room);
 			}
+			sw.Stop();
+			print("Time spam: " + sw.Elapsed.ToString());
+			PrintOutput();
+		}
+
+		void PrintOutput()
+		{
+			string output = "";
+			for (int y = 0; y < stage.tiles.GetLength(1); y++)
+			{
+				for (int x = 0; x < stage.tiles.GetLength(0); x++)
+				{
+					output += stage.tiles[x, y].type == Tiles.wall ? 0 : 1;
+					Instantiate(stage.tiles[x, y].type == Tiles.wall ? wall : floor,
+						new Vector3(tileSize.x * x, tileSize.y * y),
+						Quaternion.identity);
+				}
+				output += Environment.NewLine;
+			}
+			print("output:");
+			print(output);
 		}
 
 		void onDecorateRoom(Rect room) { }
@@ -108,46 +146,46 @@ namespace DungeonGenerator
 		void _growMaze(Vec start)
 		{
 			var cells = new List<Vec>();
-			var lastDir;
+			var lastDir = Direction.NONE;
 
 			_startRegion();
-			_carve(start);
+			_carve(start, Tiles.floor);
 
-			cells.add(start);
-			while (cells.isNotEmpty)
+			cells.Add(start);
+			while (cells.Count > 0)
 			{
-				var cell = cells.last;
+				var cell = cells[cells.Count - 1];
 
 				// See which adjacent cells are open.
-				var unmadeCells = new List<Direction>();
+				var unmadeCells = new List<Vec>();
 
-		      for (var dir in Direction)
+				foreach (Vec dir in Direction.ALL)
 				{
-					if (_canCarve(cell, dir)) unmadeCells.add(dir);
+					if (_canCarve(cell, dir)) unmadeCells.Add(dir);
 				}
 
-				if (unmadeCells.isNotEmpty)
+				if (unmadeCells.Count > 0)
 				{
 					// Based on how "windy" passages are, try to prefer carving in the
 					// same direction.
-					var dir;
-					if (unmadeCells.contains(lastDir) && rng.range(100) > windingPercent)
+					Vec dir;
+					if (unmadeCells.Contains(lastDir) && rng.Next(100) > windingPercent)
 					{
 						dir = lastDir;
 					}
 					else {
-						dir = rng.item(unmadeCells);
+						dir = unmadeCells[rng.Next(unmadeCells.Count)];
 					}
 
-					_carve(cell + dir);
-					_carve(cell + dir * 2);
+					_carve(cell + dir, Tiles.floor);
+					_carve(cell + dir * 2, Tiles.floor);
 
-					cells.add(cell + dir * 2);
+					cells.Add(cell + dir * 2);
 					lastDir = dir;
 				}
 				else {
 					// No adjacent uncarved cells.
-					cells.removeLast();
+					cells.RemoveAt(cells.Count - 1);
 
 					// This path has ended.
 					lastDir = null;
@@ -210,98 +248,132 @@ namespace DungeonGenerator
 
 		}
 
-		//	void _connectRegions()
-		//	{
-		//		// Find all of the tiles that can connect two (or more) regions.
-		//		var connectorRegions = < Vec, Set< int >>{ };
-		//    for (var pos in bounds.inflate(-1))
-		//		{
-		//			// Can't already be part of a region.
-		//			if (getTile(pos) != Tiles.wall) continue;
+		void _connectRegions()
+		{
+			// Find all of the tiles that can connect two (or more) regions.
+			var connectorRegions = new Dictionary<Vec, List<int>>();
+			for (int y = 1; y < stage.tiles.GetLength(1) - 1; y++)
+			{
+				for (int x = 1; x < stage.tiles.GetLength(0) - 1; x++)
+				{
+					Vec pos = new Vec(x, y);
+					if (getTile(pos) != Tiles.wall)
+					{
+						continue;
+					}
+					List<int> regions = new List<int>();
+					foreach (var dir in Direction.CARDINAL)
+					{
+						Vec posdir = pos + dir;
+						int region = _regions[posdir.x, posdir.y];
+						if (region >= 0) regions.Add(region);
+					}
+					if (regions.Count < 2) continue;
+					connectorRegions.Add(pos, regions);
+				}
+			}
+			List<Vec> connectors = connectorRegions.Keys.ToList();
 
-		//			var regions = new Set<int>();
-		//      for (var dir in Direction.CARDINAL)
-		//			{
-		//				var region = _regions[pos + dir];
-		//				if (region != null) regions.add(region);
-		//			}
+			// Keep track of which regions have been merged. This maps an original
+			// region index to the one it has been merged to.
 
-		//			if (regions.length < 2) continue;
+			var merged = new Dictionary<int, int>();
+			var openRegions = new List<int>();
 
-		//			connectorRegions[pos] = regions;
-		//		}
+			for (int i = 0; i <= _currentRegion; i++)
+			{
+				merged.Add(i, i);
+				openRegions.Add(i);
+			}
 
-		//		var connectors = connectorRegions.keys.toList();
+			// Keep connecting regions until we're down to one.
+			while (openRegions.Count > 1)
+			{
+				Debug.Log("connectors count" + connectors.Count);
+				if (connectors.Count < 1)
+				{
+					Debug.Log("out of connectors");
+					break;
+				}
+				Vec connector = connectors[rng.Next(connectors.Count)];
 
-		//		// Keep track of which regions have been merged. This maps an original
-		//		// region index to the one it has been merged to.
-		//		var merged = { };
-		//		var openRegions = new Set<int>();
-		//		for (var i = 0; i <= _currentRegion; i++)
-		//		{
-		//			merged[i] = i;
-		//			openRegions.add(i);
-		//		}
+				// Carve the connection.
+				_addJunction(connector);
 
-		//		// Keep connecting regions until we're down to one.
-		//		while (openRegions.length > 1)
-		//		{
-		//			var connector = rng.item(connectors);
+				// Merge the connected regions. We'll pick one region (arbitrarily) and
+				// map all of the other regions to its index.
 
-		//			// Carve the connection.
-		//			_addJunction(connector);
+				List<int> regions = new List<int>();
+				//regions.Add(connectorRegions[connector].Where(region => merged[region]));
 
-		//			// Merge the connected regions. We'll pick one region (arbitrarily) and
-		//			// map all of the other regions to its index.
-		//			var regions = connectorRegions[connector]
-		//				.map((region) => merged[region]);
-		//			var dest = regions.first;
-		//			var sources = regions.skip(1).toList();
+				foreach (int region in connectorRegions[connector])
+				{
+					regions.Add(merged[region]);
+				}
 
-		//			// Merge all of the affected regions. We have to look at *all* of the
-		//			// regions because other regions may have previously been merged with
-		//			// some of the ones we're merging now.
-		//			for (var i = 0; i <= _currentRegion; i++)
-		//			{
-		//				if (sources.contains(merged[i]))
-		//				{
-		//					merged[i] = dest;
-		//				}
-		//			}
+				int dest = regions.First();
+				List<int> sources = regions.Skip(1).ToList();
 
-		//			// The sources are no longer in use.
-		//			openRegions.removeAll(sources);
+				// Merge all of the affected regions. We have to look at *all* of the
+				// regions because other regions may have previously been merged with
+				// some of the ones we're merging now.
+				for (var i = 0; i <= _currentRegion; i++)
+				{
+					if (sources.Contains(merged[i]))
+					{
+						merged[i] = dest;
+					}
+				}
 
-		//			// Remove any connectors that aren't needed anymore.
-		//			connectors.removeWhere((pos) {
-		//				// Don't allow connectors right next to each other.
-		//				if (connector - pos < 2) return true;
+				// The sources are no longer in use.
+				openRegions.RemoveAll(x =>
+				{
+					bool match = false;
+					foreach (int source in sources)
+					{
+						if (x.Equals(source))
+						{
+							match = true;
+							break;
+						}
+					}
+					return match;
+				}
+				);
+				// Remove any connectors that aren't needed anymore.
+				connectors.RemoveAll(pos =>
+				{
+					// Don't allow connectors right next to each other.
+					if (connector.Distance(pos) < 2) return true;
 
-		//				// If the connector no long spans different regions, we don't need it.
-		//				var regions = connectorRegions[pos].map((region) => merged[region])
-		//					.toSet();
+					// If the connector no long spans different regions, we don't need it.
+					var _regions = new List<int>();
+					foreach (var _region in connectorRegions[connector])
+					{
+						_regions.Add(merged[_region]);
+					}
 
-		//				if (regions.length > 1) return false;
+					if (_regions.Count > 1) return false;
 
-		//				// This connecter isn't needed, but connect it occasionally so that the
-		//				// dungeon isn't singly-connected.
-		//				if (rng.oneIn(extraConnectorChance)) _addJunction(pos);
+					// This connecter isn't needed, but connect it occasionally so that the
+					// dungeon isn't singly-connected.
+					if (rng.Next(100) < extraConnectorChance) _addJunction(pos);
 
-		//				return true;
-		//			});
-		//		}
-		//	}
+					return true;
+				});
+			}
+		}
 
-		//	void _addJunction(Vec pos)
-		//	{
-		//		if (rng.oneIn(4))
-		//		{
-		//			setTile(pos, rng.oneIn(3) ? Tiles.openDoor : Tiles.floor);
-		//		}
-		//		else {
-		//			setTile(pos, Tiles.closedDoor);
-		//		}
-		//	}
+		void _addJunction(Vec pos)
+		{
+			if (rng.NextDouble() > .25f)
+			{
+				setTile(pos, rng.NextDouble() > .66f ? Tiles.openDoor : Tiles.floor);
+			}
+			else {
+				setTile(pos, Tiles.closedDoor);
+			}
+		}
 
 		//	void _removeDeadEnds()
 		//	{
@@ -334,14 +406,14 @@ namespace DungeonGenerator
 		//	/// [Cell] at [pos] to the adjacent Cell facing [direction]. Returns `true`
 		//	/// if the starting Cell is in bounds and the destination Cell is filled
 		//	/// (or out of bounds).</returns>
-		//	bool _canCarve(Vec pos, Direction direction)
-		//	{
-		//		// Must end in bounds.
-		//		if (!bounds.contains(pos + direction * 3)) return false;
+		bool _canCarve(Vec pos, Vec direction)
+		{
+			// Must end in bounds.
+			if (!bounds.Contains((pos + direction * 3).ToVector2())) return false;
 
-		//		// Destination must not be open.
-		//		return getTile(pos + direction * 2) == Tiles.wall;
-		//	}
+			// Destination must not be open.
+			return getTile(pos + direction * 2) == Tiles.wall;
+		}
 
 		public void _startRegion()
 		{
@@ -354,22 +426,23 @@ namespace DungeonGenerator
 			setTile(pos, type);
 			_regions[pos.x, pos.y] = _currentRegion;
 		}
-		//}
+
 
 
 	}
 }
 
-public enum Direction
+public static class Direction
 {
-    NONE,
-    CARDINAL,
-    N,
-    NE,
-    E,
-    SE,
-    S,
-    SW,
-    W,
-    NW
+	static public Vec NONE = new Vec(0, 0);
+	static public Vec N = new Vec(0, 1);
+	static public Vec NE = new Vec(1, 1);
+	static public Vec E = new Vec(1, 0);
+	static public Vec SE = new Vec(1, -1);
+	static public Vec S = new Vec(0, -1);
+	static public Vec SW = new Vec(-1, -1);
+	static public Vec W = new Vec(-1, 0);
+	static public Vec NW = new Vec(-1, 1);
+	static public Vec[] ALL = new Vec[] { N, NE, E, SE, S, SW, W, NW };
+	static public Vec[] CARDINAL = new Vec[] { N, E, S, W };
 }

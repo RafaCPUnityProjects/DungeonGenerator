@@ -12,24 +12,26 @@ namespace DungeonGenerator
 		public Rect bounds;
 		//	//void generate(Stage stage);
 
-		//	void bindStage(Stage stage)
-		//	{
-		//		this.stage = stage;
-		//	}
+		public void bindStage(Stage stage)
+		{
+			this.stage = stage;
+		}
 
-		public TileType getTile(Vec pos) {
+		public TileType getTile(Vec pos)
+		{
 			return stage[pos].type;
 		}
 		public void setTile(Vec pos, TileType type)
 		{
+			Debug.Log("set tile: " + stage[pos]);
 			stage[pos].type = type;
 		}
 
 		public void fill(TileType tile)
 		{
-			for (var y = 0; y < stage.height; y++)
+			for (int y = 0; y < stage.height; y++)
 			{
-				for (var x = 0; x < stage.width; x++)
+				for (int x = 0; x < stage.width; x++)
 				{
 					setTile(new Vec(x, y), tile);
 				}
@@ -76,6 +78,31 @@ namespace DungeonGenerator
 		{
 			this.x = x;
 			this.y = y;
+		}
+
+		public int Distance(Vec other)
+		{
+			return (int)(Mathf.Sqrt(Mathf.Pow(other.x - x, 2) + Mathf.Pow(other.y - y, 2)));
+		}
+
+		public static Vec operator *(Vec vec, float multiplier)
+		{
+			return new Vec((int)(vec.x * multiplier), (int)(vec.y * multiplier));
+		}
+
+		public static Vec operator +(Vec vec1, Vec vec2)
+		{
+			return new Vec(vec1.x + vec2.x, vec1.y + vec2.y);
+		}
+
+		public static Vec operator -(Vec vec1, Vec vec2)
+		{
+			return new Vec(vec1.x - vec2.x, vec1.y - vec2.y);
+		}
+
+		public Vector2 ToVector2()
+		{
+			return new Vector2(x, y);
 		}
 	}
 }
