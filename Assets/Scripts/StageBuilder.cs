@@ -23,7 +23,7 @@ namespace DungeonGenerator
 		}
 		public void setTile(Vec pos, TileType type)
 		{
-			Debug.Log("set tile: " + stage[pos]);
+			//Debug.Log("set tile: " + stage[pos]);
 			stage[pos].type = type;
 		}
 

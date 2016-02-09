@@ -39,7 +39,7 @@ namespace DungeonGenerator
 		public Tile[,] tiles;
 		public Stage(int width, int height)
 		{
-			Debug.Log("Stage start");
+			//Debug.Log("Stage start");
 			this.width = width;
 			this.height = height;
 			tiles = new Tile[width, height];
@@ -50,7 +50,7 @@ namespace DungeonGenerator
 					tiles[x, y] = new Tile();
 				}
 			}
-			Debug.Log("Stage finish");
+			//Debug.Log("Stage finish");
 
 		}
 		//  Iterable<Actor> get actors => _actors;
@@ -325,7 +325,7 @@ namespace DungeonGenerator
 
 			public Tile(TileType type, bool visible)
 			{
-				Debug.Log("type = " + type.name);
+				//Debug.Log("type = " + type.name);
 				this.type = type;
 				_visible = visible;
 			}
@@ -334,7 +334,7 @@ namespace DungeonGenerator
 			{
 				type = Tiles.wall;
 				_visible = true;
-				Debug.Log("type = " + type.name);
+				//Debug.Log("type = " + type.name);
 			}
 		}
 			//			bool get visible => _visible;

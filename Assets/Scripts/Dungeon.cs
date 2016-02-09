@@ -76,6 +76,12 @@ namespace DungeonGenerator
 
 		private System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
 
+		public bool makeRooms = true;
+		public bool makeMaze = true;
+		public bool connectStuff = true;
+		public bool clearStuff = true;
+		public bool doDecorate = true;
+
 		void Start()
 		{
 			Tiles.initialize();
@@ -95,30 +101,56 @@ namespace DungeonGenerator
 
 			fill(Tiles.wall);
 			_regions = new int[stage.width, stage.height];
+			Debug.Log("Map started: " + sw.Elapsed.ToString());
 
-			_addRooms();
+
+			if (makeRooms)
+			{
+				_addRooms();
+				Debug.Log("Rooms made: " + sw.Elapsed.ToString());
+			}
 
 			// Fill in all of the empty space with mazes.
-			for (var y = 1; y < bounds.height; y += 2)
+			if (makeMaze)
 			{
-				for (var x = 1; x < bounds.width; x += 2)
+				for (var y = 1; y < bounds.height; y += 2)
 				{
-					var pos = new Vec(x, y);
-					if (getTile(pos) != Tiles.wall) continue;
-					_growMaze(pos);
+					for (var x = 1; x < bounds.width; x += 2)
+					{
+						var pos = new Vec(x, y);
+						if (getTile(pos) != Tiles.wall) continue;
+						_growMaze(pos);
+					}
 				}
+
+				Debug.Log("Maze made: " + sw.Elapsed.ToString());
 			}
 
-			_connectRegions();
-			//_removeDeadEnds();
-
-			foreach (var room in _rooms)
+			if (connectStuff)
 			{
-				onDecorateRoom(room);
+				_connectRegions();
+				Debug.Log("Stuff connected: " + sw.Elapsed.ToString());
 			}
-			sw.Stop();
-			print("Time spam: " + sw.Elapsed.ToString());
+			if (clearStuff)
+			{
+				//_removeDeadEnds();
+				Debug.Log("Stuff cleared: " + sw.Elapsed.ToString());
+			}
+
+			if (doDecorate)
+			{
+				foreach (var room in _rooms)
+				{
+					onDecorateRoom(room);
+				}
+				Debug.Log("Decorated: " + sw.Elapsed.ToString());
+
+			}
+			Debug.Log("Random stuff done: " + sw.Elapsed.ToString());
 			PrintOutput();
+			Debug.Log("Stuff printed: " + sw.Elapsed.ToString());
+
+			sw.Stop();
 		}
 
 		void PrintOutput()
@@ -289,10 +321,10 @@ namespace DungeonGenerator
 			// Keep connecting regions until we're down to one.
 			while (openRegions.Count > 1)
 			{
-				Debug.Log("connectors count" + connectors.Count);
+				//Debug.Log("connectors count" + connectors.Count);
 				if (connectors.Count < 1)
 				{
-					Debug.Log("out of connectors");
+					//Debug.Log("out of connectors");
 					break;
 				}
 				Vec connector = connectors[rng.Next(connectors.Count)];
