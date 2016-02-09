@@ -133,7 +133,7 @@ namespace DungeonGenerator
 			}
 			if (clearStuff)
 			{
-				//_removeDeadEnds();
+				_removeDeadEnds();
 				Debug.Log("Stuff cleared: " + sw.Elapsed.ToString());
 			}
 
@@ -407,38 +407,44 @@ namespace DungeonGenerator
 			}
 		}
 
-		//	void _removeDeadEnds()
-		//	{
-		//		var done = false;
+		void _removeDeadEnds()
+		{
+			var done = false;
 
-		//		while (!done)
-		//		{
-		//			done = true;
+			while (!done)
+			{
+				done = true;
 
-		//      for (var pos in bounds.inflate(-1))
-		//			{
-		//				if (getTile(pos) == Tiles.wall) continue;
+				//foreach (var pos in bounds.inflate(-1))
+				for (int y = 1; y < bounds.height - 1; y++)
+				{
+					for (int x = 1; x < bounds.width - 1; x++)
+					{
+						Vec pos = new Vec(x, y);
+						if (getTile(pos) == Tiles.wall) continue;
 
-		//				// If it only has one exit, it's a dead end.
-		//				var exits = 0;
-		//        for (var dir in Direction.CARDINAL)
-		//				{
-		//					if (getTile(pos + dir) != Tiles.wall) exits++;
-		//				}
+						// If it only has one exit, it's a dead end.
+						var exits = 0;
+						foreach (var dir in Direction.CARDINAL)
+						{
+							if (getTile(pos + dir) != Tiles.wall) exits++;
+						}
 
-		//				if (exits != 1) continue;
+						if (exits != 1) continue;
 
-		//				done = false;
-		//				setTile(pos, Tiles.wall);
-		//			}
-		//		}
-		//	}
+						done = false;
+						setTile(pos, Tiles.wall);
+					}
+				}
+			}
+		}
 
 		//	/// Gets whether or not an opening can be carved from the given starting
 		//	/// [Cell] at [pos] to the adjacent Cell facing [direction]. Returns `true`
 		//	/// if the starting Cell is in bounds and the destination Cell is filled
 		//	/// (or out of bounds).</returns>
 		bool _canCarve(Vec pos, Vec direction)
+
 		{
 			// Must end in bounds.
 			if (!bounds.Contains((pos + direction * 3).ToVector2())) return false;
