@@ -31,7 +31,7 @@ namespace DungeonGenerator
 		public static TileType treeAlt1;
 		public static TileType treeAlt2;
 
-		public static void initialize()
+		public static void Initialize()
 		{
 			// Define the tile types.
 			Tiles.floor = new TileType("floor", true, true);

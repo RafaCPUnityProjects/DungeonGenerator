@@ -12,28 +12,28 @@ namespace DungeonGenerator
 		public Rect bounds;
 		//	//void generate(Stage stage);
 
-		public void bindStage(Stage stage)
+		public void BindStage(Stage stage)
 		{
 			this.stage = stage;
 		}
 
-		public TileType getTile(Vec pos)
+		public TileType GetTile(Vec pos)
 		{
 			return stage[pos].type;
 		}
-		public void setTile(Vec pos, TileType type)
+		public void SetTile(Vec pos, TileType type)
 		{
 			//Debug.Log("set tile: " + stage[pos]);
 			stage[pos].type = type;
 		}
 
-		public void fill(TileType tile)
+		public void Fill(TileType tile)
 		{
 			for (int y = 0; y < stage.height; y++)
 			{
 				for (int x = 0; x < stage.width; x++)
 				{
-					setTile(new Vec(x, y), tile);
+					SetTile(new Vec(x, y), tile);
 				}
 			}
 		}
