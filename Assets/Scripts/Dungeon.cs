@@ -81,6 +81,8 @@ namespace DungeonGenerator
 		public bool connectStuff = true;
 		public bool clearStuff = true;
 		public bool doDecorate = true;
+		public float cameraAdjust = 0.5f;
+		int printedTimes = 0;
 
 		void Start()
 		{
@@ -102,13 +104,13 @@ namespace DungeonGenerator
 
 			Fill(Tiles.wall);
 			_regions = new int[stage.width, stage.height];
-			for (int y = 0; y < stage.height; y++)
-			{
-				for (int x = 0; x < stage.width; x++)
-				{
-					_regions[x, y] = -1;
-				}
-			}
+			//for (int y = 0; y < stage.height; y++)
+			//{
+			//    for (int x = 0; x < stage.width; x++)
+			//    {
+			//        _regions[x, y] = -1;
+			//    }
+			//}
 			Debug.Log("Map initialized: " + sw.Elapsed.ToString());
 
 
@@ -160,18 +162,18 @@ namespace DungeonGenerator
 				PrintOutput();
 			}
 			Debug.Log("Random stuff done: " + sw.Elapsed.ToString());
-			PrintOutput();
+			//PrintOutput();
 
 			sw.Stop();
 		}
 		List<GameObject> outputGOs = new List<GameObject>();
 		void PrintOutput()
 		{
-			foreach(GameObject go in outputGOs)
-			{
-				Destroy(go);
-			}
-			outputGOs.Clear();
+			//foreach (GameObject go in outputGOs)
+			//{
+			//	Destroy(go);
+			//}
+			//outputGOs.Clear();
 			//string output = "";
 			for (int y = 0; y < stage.tiles.GetLength(1); y++)
 			{
@@ -179,15 +181,23 @@ namespace DungeonGenerator
 				{
 					//output += stage.tiles[x, y].type == Tiles.wall ? 0 : 1;
 					outputGOs.Add(Instantiate(stage.tiles[x, y].type == Tiles.wall ? wall : floor,
-						new Vector3(tileSize.x * x, tileSize.y * y),
+						new Vector3(tileSize.x * x + printedTimes * (tileSize.x * stage.tiles.GetLength(0) + 3), tileSize.y * y),
 						Quaternion.identity) as GameObject);
 				}
 				//output += Environment.NewLine;
 			}
+			printedTimes++;
 			//print("output:");
 			//print(output);
 			Debug.Log("Stuff printed: " + sw.Elapsed.ToString());
+			AdjustCamera();
+		}
 
+		void AdjustCamera()
+		{
+			Camera camera = FindObjectOfType<Camera>();
+			camera.transform.position = new Vector3((printedTimes * (tileSize.x * stage.tiles.GetLength(0) + 3)) / 2, stage.tiles.GetLength(1) * tileSize.y / 2, camera.transform.position.z);
+			camera.orthographicSize = Mathf.Max(printedTimes * bounds.width, bounds.height) * cameraAdjust;
 		}
 
 		void OnDecorateRoom(Rect room) { }
@@ -199,8 +209,8 @@ namespace DungeonGenerator
 			List<Vec> cells = new List<Vec>();
 			Vec lastDir = Direction.NONE;
 
-			_startRegion();
-			_carve(start, Tiles.floor);
+			StartRegion();
+			Carve(start, Tiles.floor);
 
 			cells.Add(start);
 			while (cells.Count > 0)
@@ -212,7 +222,7 @@ namespace DungeonGenerator
 
 				foreach (Vec dir in Direction.CARDINAL)
 				{
-					if (_canCarve(cell, dir)) unmadeCells.Add(dir);
+					if (CanCarve(cell, dir)) unmadeCells.Add(dir);
 				}
 
 				if (unmadeCells.Count > 0)
@@ -229,8 +239,8 @@ namespace DungeonGenerator
 						dir = unmadeCells[rng.Next(unmadeCells.Count)];
 					}
 
-					_carve(cell + dir, Tiles.floor);
-					_carve(cell + dir * 2, Tiles.floor);
+					Carve(cell + dir, Tiles.floor);
+					Carve(cell + dir * 2, Tiles.floor);
 
 					cells.Add(cell + dir * 2);
 					lastDir = dir;
@@ -288,13 +298,13 @@ namespace DungeonGenerator
 
 				_rooms.Add(room);
 
-				_startRegion();
+				StartRegion();
 
 				for (int s = x; s < x + width; s++)
 				{
 					for (int t = y; t < y + height; t++)
 					{
-						_carve(new Vec(s, t), Tiles.floor);
+						Carve(new Vec(s, t), Tiles.floor);
 					}
 				}
 			}
@@ -304,7 +314,7 @@ namespace DungeonGenerator
 		void ConnectRegions()
 		{
 			// Find all of the tiles that can connect two (or more) regions.
-			Dictionary<Vec,List<int>> connectorRegions = new Dictionary<Vec, List<int>>();
+			Dictionary<Vec, List<int>> connectorRegions = new Dictionary<Vec, List<int>>();
 			for (int y = 1; y < stage.tiles.GetLength(1) - 1; y++)
 			{
 				for (int x = 1; x < stage.tiles.GetLength(0) - 1; x++)
@@ -318,11 +328,24 @@ namespace DungeonGenerator
 					foreach (Vec dir in Direction.CARDINAL)
 					{
 						Vec posdir = pos + dir;
+						if (GetTile(posdir) == Tiles.wall)
+						{
+							continue;
+						}
 						int region = _regions[posdir.x, posdir.y];
-						if (region >= 0) regions.Add(region);
+						if (region >= 0 && !regions.Contains(region))
+						{
+							regions.Add(region);
+						}
 					}
-					if (regions.Count < 2) continue;
-					connectorRegions.Add(pos, regions);
+					if (regions.Count < 2)
+					{
+						continue;
+					}
+					if (!connectorRegions.ContainsKey(pos))
+					{
+						connectorRegions.Add(pos, regions);
+					}
 				}
 			}
 			List<Vec> connectors = connectorRegions.Keys.ToList();
@@ -361,7 +384,10 @@ namespace DungeonGenerator
 
 				foreach (int region in connectorRegions[connector])
 				{
-					regions.Add(merged[region]);
+					if (!regions.Contains(merged[region]))
+					{
+						regions.Add(merged[region]);
+					}
 				}
 
 				int dest = regions.First();
@@ -378,54 +404,54 @@ namespace DungeonGenerator
 					}
 				}
 
-				// The sources are no longer in use.
-				//openRegions.RemoveAll(x =>
-				//{
-				//	foreach (int source in sources)
-				//	{
-				//		if (x.Equals(source))
-				//		{
-				//			return true;
-				//		}
-				//	}
-				//	return false;
-				//}
-				//);
+				/*// The sources are no longer in use.
+				openRegions.RemoveAll(x =>
+				{
+					foreach (int source in sources)
+					{
+						if (x.Equals(source))
+						{
+							return true;
+						}
+					}
+					return false;
+				}
+				);*/
 				for (int i = 0; i < openRegions.Count; i++)
 				{
 					foreach (int source in sources)
 					{
-						if (openRegions[i].Equals(source))
+						if (openRegions[i] == (source))
 						{
 							openRegions.RemoveAt(i);
 						}
 					}
 				}
-				// Remove any connectors that aren't needed anymore.
-				//connectors.RemoveAll(pos =>
-				//{
-				//	// Don't allow connectors right next to each other.
-				//	if (connector.Distance(pos) < 2) return true;
-
-				//	// If the connector no long spans different regions, we don't need it.
-				//	List<int> _regions = new List<int>();
-				//	foreach (int _region in connectorRegions[connector])
-				//	{
-				//		if (!_regions.Contains(merged[_region]))
-				//		{
-				//			_regions.Add(merged[_region]);
-				//			//_regions = _regions.Distinct().ToList();
-				//		}
-				//	}
-
-				//	if (_regions.Count > 1) return false;
-
-				//	// This connecter isn't needed, but connect it occasionally so that the
-				//	// dungeon isn't singly-connected.
-				//	if (rng.Next(100) < extraConnectorChance) AddJunction(pos);
-
-				//	return true;
-				//});
+				/*// Remove any connectors that aren't needed anymore.
+				connectors.RemoveAll(pos =>
+				{
+					// Don't allow connectors right next to each other.
+					if (connector.Distance(pos) < 2) return true;
+				
+					// If the connector no long spans different regions, we don't need it.
+					List<int> _regions = new List<int>();
+					foreach (int _region in connectorRegions[connector])
+					{
+						if (!_regions.Contains(merged[_region]))
+						{
+							_regions.Add(merged[_region]);
+							//_regions = _regions.Distinct().ToList();
+						}
+					}
+				
+					if (_regions.Count > 1) return false;
+				
+					// This connecter isn't needed, but connect it occasionally so that the
+					// dungeon isn't singly-connected.
+					if (rng.Next(100) < extraConnectorChance) AddJunction(pos);
+				
+					return true;
+				});*/
 				for (int i = 0; i < connectors.Count; i++)
 				{
 					Vec pos = connectors[i];
@@ -441,12 +467,12 @@ namespace DungeonGenerator
 							_regions.Add(merged[_region]);
 						}
 					}
-					if(_regions.Count > 1)
+					if (_regions.Count > 1)
 					{
 						//Keep the connector
 						continue;
 					}
-					if(rng.Next(100) < extraConnectorChance)
+					if (rng.Next(100) < extraConnectorChance)
 					{
 						AddJunction(pos);
 						connectors.Remove(pos);
@@ -461,7 +487,8 @@ namespace DungeonGenerator
 			{
 				SetTile(pos, rng.NextDouble() > .66f ? Tiles.openDoor : Tiles.floor);
 			}
-			else {
+			else
+			{
 				SetTile(pos, Tiles.closedDoor);
 			}
 		}
@@ -502,7 +529,7 @@ namespace DungeonGenerator
 		//	/// [Cell] at [pos] to the adjacent Cell facing [direction]. Returns `true`
 		//	/// if the starting Cell is in bounds and the destination Cell is filled
 		//	/// (or out of bounds).</returns>
-		bool _canCarve(Vec pos, Vec direction)
+		bool CanCarve(Vec pos, Vec direction)
 
 		{
 			// Must end in bounds.
@@ -512,20 +539,17 @@ namespace DungeonGenerator
 			return GetTile(pos + direction * 2) == Tiles.wall;
 		}
 
-		public void _startRegion()
+		public void StartRegion()
 		{
 			_currentRegion++;
 		}
 
-		void _carve(Vec pos, Stage.TileType type)
+		void Carve(Vec pos, Stage.TileType type)
 		{
 			if (type == null) type = Tiles.floor;
 			SetTile(pos, type);
 			_regions[pos.x, pos.y] = _currentRegion;
 		}
-
-
-
 	}
 }
 
