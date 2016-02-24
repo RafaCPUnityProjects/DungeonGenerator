@@ -56,12 +56,13 @@ namespace DungeonGenerator
 		//  /// The inverse chance of adding a connector between two regions that have
 		//  /// already been joined. Increasing this leads to more loosely connected
 		//  /// dungeons.
-		public int extraConnectorChance = 20;
+		[Range(0,1)]
+		public float extraConnectorChance = 0.2f;
 
 		//  /// Increasing this allows rooms to be larger.
 		public int roomExtraSize = 0;
-
-		public int windingPercent = 0;
+		[Range(0,1)]
+		public float windingPercent = 0f;
 
 		List<Rect> _rooms = new List<Rect>();
 
@@ -81,6 +82,7 @@ namespace DungeonGenerator
 		public bool connectStuff = true;
 		public bool clearStuff = true;
 		public bool doDecorate = true;
+		public bool showHistory = false;
 		public float cameraAdjust = 0.5f;
 		int printedTimes = 0;
 
@@ -118,7 +120,10 @@ namespace DungeonGenerator
 			{
 				AddRooms();
 				Debug.Log("Rooms made: " + sw.Elapsed.ToString());
-				PrintOutput();
+				if (showHistory)
+				{
+					PrintOutput();
+				}
 			}
 
 			// Fill in all of the empty space with mazes.
@@ -135,20 +140,29 @@ namespace DungeonGenerator
 				}
 
 				Debug.Log("Maze made: " + sw.Elapsed.ToString());
-				PrintOutput();
+				if (showHistory)
+				{
+					PrintOutput();
+				}
 			}
 
 			if (connectStuff)
 			{
 				ConnectRegions();
 				Debug.Log("Stuff connected: " + sw.Elapsed.ToString());
-				PrintOutput();
+				if (showHistory)
+				{
+					PrintOutput();
+				}
 			}
 			if (clearStuff)
 			{
 				RemoveDeadEnds();
 				Debug.Log("Stuff cleared: " + sw.Elapsed.ToString());
-				PrintOutput();
+				if (showHistory)
+				{
+					PrintOutput();
+				}
 			}
 
 			if (doDecorate)
@@ -159,11 +173,16 @@ namespace DungeonGenerator
 				}
 				Debug.Log("Decorated: " + sw.Elapsed.ToString());
 
-				PrintOutput();
+				if (showHistory)
+				{
+					PrintOutput();
+				}
 			}
 			Debug.Log("Random stuff done: " + sw.Elapsed.ToString());
-			//PrintOutput();
-
+			if (!showHistory)
+			{
+				PrintOutput();
+			}
 			sw.Stop();
 		}
 		List<GameObject> outputGOs = new List<GameObject>();
@@ -230,7 +249,7 @@ namespace DungeonGenerator
 					// Based on how "windy" passages are, try to prefer carving in the
 					// same direction.
 					Vec dir;
-					if (unmadeCells.Contains(lastDir) && rng.Next(100) > windingPercent)
+					if (unmadeCells.Contains(lastDir) && rng.NextDouble() > windingPercent)
 					{
 						dir = lastDir;
 					}
@@ -259,8 +278,11 @@ namespace DungeonGenerator
 		/// Places rooms ignoring the existing maze corridors.
 		void AddRooms()
 		{
-			for (int i = 0; i < numRoomTries; i++)
+			int numberOfTries = 0;
+			while(_rooms.Count < numRoomTries)
+			//for (int i = 0; i < numRoomTries; i++)
 			{
+				numberOfTries++;
 				// Pick a random room size. The funny math here does two things:
 				// - It makes sure rooms are odd-sized to line up with maze.
 				// - It avoids creating rooms that are too rectangular: too tall and
@@ -308,7 +330,7 @@ namespace DungeonGenerator
 					}
 				}
 			}
-
+			print("number of tries: " + numberOfTries);
 		}
 
 		void ConnectRegions()
@@ -472,7 +494,7 @@ namespace DungeonGenerator
 						//Keep the connector
 						continue;
 					}
-					if (rng.Next(100) < extraConnectorChance)
+					if (rng.NextDouble() < extraConnectorChance)
 					{
 						AddJunction(pos);
 						connectors.Remove(pos);
@@ -564,6 +586,17 @@ public static class Direction
 	static public Vec SW = new Vec(-1, -1);
 	static public Vec W = new Vec(-1, 0);
 	static public Vec NW = new Vec(-1, 1);
+	//doubles
+	static public Vec NN = new Vec(0, 2);
+	static public Vec NENE = new Vec(2, 2);
+	static public Vec EE = new Vec(2, 0);
+	static public Vec SESE = new Vec(2, -2);
+	static public Vec SS = new Vec(0, -2);
+	static public Vec SWSW = new Vec(-2, -2);
+	static public Vec WW = new Vec(-2, 0);
+	static public Vec NWNW = new Vec(-2, 2);
 	static public Vec[] ALL = new Vec[] { N, NE, E, SE, S, SW, W, NW };
+	static public Vec[] DOUBLEALL = new Vec[] { N, NE, E, SE, S, SW, W, NW, NN, NENE, EE, SESE, SS, SWSW, WW, NWNW };
 	static public Vec[] CARDINAL = new Vec[] { N, E, S, W };
+	static public Vec[] DOUBLECARDINAL = new Vec[] { N, E, S, W, NN, EE, SS, WW };
 }
